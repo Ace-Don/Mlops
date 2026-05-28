@@ -1,0 +1,260 @@
+# =============================================================================
+# MLOPS PROJECT — ROOT .gitignore
+# =============================================================================
+# Place this in the root directory of your project.
+# Covers: Python, ZenML, MLflow, notebooks, databases, secrets, OS files
+
+
+# =============================================================================
+# PYTHON
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+.eggs/
+pip-wheel-metadata/
+*.whl
+
+
+# =============================================================================
+# VIRTUAL ENVIRONMENTS
+# =============================================================================
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.conda/
+conda-env/
+
+
+# =============================================================================
+# ENVIRONMENT VARIABLES & SECRETS
+# =============================================================================
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+*.secret
+secrets/
+credentials/
+config/local/
+*_credentials.json
+*_service_account.json
+api_keys.txt
+
+
+# =============================================================================
+# ZENML
+# =============================================================================
+.zen/
+zenml_stores/
+zenml-config.yaml
+
+# Local artifact store — large binary files, model weights, datasets
+# Only ignore local store — remote stores (S3, GCS) are not local files
+artifact_store/
+local_stores/
+.zenml/local_stores/
+
+
+# =============================================================================
+# MLFLOW
+# =============================================================================
+mlruns/
+mlartifacts/
+mlflow.db
+mlflow-artifacts/
+
+
+# =============================================================================
+# MODEL FILES & ARTIFACTS
+# =============================================================================
+*.pkl
+*.pickle
+*.joblib
+*.h5
+*.hdf5
+*.pb
+*.pt
+*.pth
+*.onnx
+*.bin
+*.safetensors
+models/
+saved_models/
+checkpoints/
+
+
+# =============================================================================
+# DATASETS & DATA FILES
+# =============================================================================
+data/raw/
+data/processed/
+data/interim/
+data/external/
+*.csv
+*.tsv
+*.parquet
+*.feather
+*.arrow
+*.json
+!configs/*.json
+*.xlsx
+*.xls
+*.npy
+*.npz
+
+
+# =============================================================================
+# DATABASE FILES
+# =============================================================================
+*.db
+*.sqlite
+*.sqlite3
+db/
+
+
+# =============================================================================
+# JUPYTER NOTEBOOKS — outputs only, keep the notebooks
+# =============================================================================
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+# Uncomment below to also ignore all notebooks
+# *.ipynb
+
+
+# =============================================================================
+# LOGS
+# =============================================================================
+*.log
+logs/
+log/
+*.out
+*.err
+nohup.out
+
+
+# =============================================================================
+# TESTING & COVERAGE
+# =============================================================================
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+coverage/
+htmlcov/
+.tox/
+.nox/
+nosetests.xml
+test-results/
+*.test
+
+
+# =============================================================================
+# DOCKER
+# =============================================================================
+.docker/
+docker-compose.override.yml
+# Keep docker-compose.yml and Dockerfile tracked
+
+
+# =============================================================================
+# IDE & EDITORS
+# =============================================================================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm / JetBrains
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Sublime
+*.sublime-project
+*.sublime-workspace
+
+# Spyder
+.spyderproject.db
+.spyproject/
+
+# Rope
+.ropeproject/
+
+
+# =============================================================================
+# OS FILES
+# =============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+
+# =============================================================================
+# TEMPORARY FILES
+# =============================================================================
+tmp/
+temp/
+.tmp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+*.rej
+
+
+# =============================================================================
+# COMPILED / GENERATED
+# =============================================================================
+*.so
+*.dylib
+*.dll
+htmldocs/
+docs/_build/
+site/
