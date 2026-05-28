@@ -1,0 +1,471 @@
+# build:
+#   contains_code: bool
+#   duration: Union[int, NoneType]
+#   images: Dict[str, BuildItem]
+#   is_local: bool
+#   python_version: Union[str, NoneType]
+#   zenml_version: Union[str, NoneType]
+# cache_policy: Union[Annotated[CachePolicy, BeforeValidator], NoneType]
+# cleanup_hook_source: Union[Annotated[Source, SerializeAsAny, BeforeValidator], NoneType]
+# enable_artifact_metadata: Union[bool, NoneType]
+# enable_artifact_visualization: Union[bool, NoneType]
+# enable_cache: Union[bool, NoneType]
+# enable_heartbeat: Union[bool, NoneType]
+# enable_pipeline_logs: Union[bool, NoneType]
+# enable_step_logs: Union[bool, NoneType]
+# environment: Union[Dict[str, Any], NoneType]
+# execution_mode: Union[ExecutionMode, NoneType]
+# extra: Union[Dict[str, Any], NoneType]
+# failure_hook_source: Union[Annotated[Source, SerializeAsAny, BeforeValidator], NoneType]
+# init_hook_kwargs: Union[Dict[str, Any], NoneType]
+# init_hook_source: Union[Annotated[Source, SerializeAsAny, BeforeValidator], NoneType]
+# model:
+#   audience: Union[str, NoneType]
+#   description: Union[str, NoneType]
+#   ethics: Union[str, NoneType]
+#   license: Union[str, NoneType]
+#   limitations: Union[str, NoneType]
+#   model_version_id: Union[UUID, NoneType]
+#   name: str
+#   save_models_to_registry: bool
+#   suppress_class_validation_warnings: bool
+#   tags: Union[List[str], NoneType]
+#   trade_offs: Union[str, NoneType]
+#   use_cases: Union[str, NoneType]
+#   version: Union[ModelStages, int, str, NoneType]
+# parameters: Union[Dict[str, Any], NoneType]
+# retry:
+#   backoff: int
+#   delay: int
+#   max_retries: int
+# run_name: Union[str, NoneType]
+# schedule:
+#   catchup: bool
+#   cron_expression: Union[str, NoneType]
+#   end_time: Union[datetime, NoneType]
+#   interval_second: Union[timedelta, NoneType]
+#   name: Union[str, NoneType]
+#   run_once_start_time: Union[datetime, NoneType]
+#   start_time: Union[datetime, NoneType]
+# secrets: Union[List[Union[UUID, str]], NoneType]
+# settings:
+#   deployment:
+#     api_url_path: str
+#     app_description: Union[str, NoneType]
+#     app_extensions: Union[List[AppExtensionSpec], NoneType]
+#     app_kwargs: Dict[str, Any]
+#     app_title: Union[str, NoneType]
+#     app_version: Union[str, NoneType]
+#     cors:
+#       allow_credentials: bool
+#       allow_headers: List[str]
+#       allow_methods: List[str]
+#       allow_origins: List[str]
+#     custom_endpoints: Union[List[EndpointSpec], NoneType]
+#     custom_middlewares: Union[List[MiddlewareSpec], NoneType]
+#     dashboard_files_path: Union[str, NoneType]
+#     deployment_app_runner_flavor: Union[Annotated[SourceOrObject, BeforeValidator,
+#       PlainSerializer], NoneType]
+#     deployment_app_runner_kwargs: Dict[str, Any]
+#     deployment_service_class: Union[Annotated[SourceOrObject, BeforeValidator, PlainSerializer],
+#       NoneType]
+#     deployment_service_kwargs: Dict[str, Any]
+#     docs_url_path: str
+#     health_url_path: str
+#     include_default_endpoints: DeploymentDefaultEndpoints
+#     include_default_middleware: DeploymentDefaultMiddleware
+#     info_url_path: str
+#     invoke_url_path: str
+#     log_level: LoggingLevels
+#     metrics_url_path: str
+#     redoc_url_path: str
+#     root_url_path: str
+#     secure_headers:
+#       cache: Union[bool, str]
+#       content: Union[bool, str]
+#       csp: Union[bool, str]
+#       hsts: Union[bool, str]
+#       permissions: Union[bool, str]
+#       referrer: Union[bool, str]
+#       server: Union[bool, str]
+#       xfo: Union[bool, str]
+#     shutdown_hook: Union[Annotated[SourceOrObject, BeforeValidator, PlainSerializer],
+#       NoneType]
+#     shutdown_hook_kwargs: Dict[str, Any]
+#     startup_hook: Union[Annotated[SourceOrObject, BeforeValidator, PlainSerializer],
+#       NoneType]
+#     startup_hook_kwargs: Dict[str, Any]
+#     thread_pool_size: int
+#     uvicorn_host: str
+#     uvicorn_kwargs: Dict[str, Any]
+#     uvicorn_port: int
+#     uvicorn_reload: bool
+#     uvicorn_workers: int
+#   docker:
+#     allow_download_from_artifact_store: bool
+#     allow_download_from_code_repository: bool
+#     allow_including_files_in_images: bool
+#     apt_packages: List[str]
+#     build_config:
+#       build_options:
+#         build_args: Union[Dict[str, Any], NoneType]
+#         cache_from: Union[List[str], NoneType]
+#         labels: Union[Dict[str, Any], NoneType]
+#         no_cache: Union[bool, NoneType]
+#         pull: Union[bool, NoneType]
+#         rm: Union[bool, NoneType]
+#         shm_size: Union[int, NoneType]
+#       dockerignore: Union[str, NoneType]
+#     build_context_root: Union[str, NoneType]
+#     build_options: Dict[str, Any]
+#     copy_files: bool
+#     copy_global_config: bool
+#     disable_automatic_requirements_detection: bool
+#     dockerfile: Union[str, NoneType]
+#     dockerignore: Union[str, NoneType]
+#     environment: Dict[str, Any]
+#     image_tag: Union[str, NoneType]
+#     install_deployment_requirements: bool
+#     install_stack_requirements: bool
+#     local_project_install_command: Union[str, NoneType]
+#     parent_image: Union[str, NoneType]
+#     parent_image_build_config:
+#       build_options:
+#         build_args: Union[Dict[str, Any], NoneType]
+#         cache_from: Union[List[str], NoneType]
+#         labels: Union[Dict[str, Any], NoneType]
+#         no_cache: Union[bool, NoneType]
+#         pull: Union[bool, NoneType]
+#         rm: Union[bool, NoneType]
+#         shm_size: Union[int, NoneType]
+#       dockerignore: Union[str, NoneType]
+#     prevent_build_reuse: bool
+#     pyproject_export_command: Union[List[str], NoneType]
+#     pyproject_path: Union[str, NoneType]
+#     python_package_installer: PythonPackageInstaller
+#     python_package_installer_args: Dict[str, Any]
+#     replicate_local_python_environment: Union[List[str], PythonEnvironmentExportMethod,
+#       bool, NoneType]
+#     required_hub_plugins: List[str]
+#     required_integrations: List[str]
+#     requirements: Union[NoneType, str, List[str]]
+#     runtime_environment: Dict[str, Any]
+#     skip_build: bool
+#     source_files: Union[str, NoneType]
+#     target_repository: Union[str, NoneType]
+#     user: Union[str, NoneType]
+#   experiment_tracker.mlflow:
+#     experiment_name: Union[str, NoneType]
+#     nested: bool
+#     tags: Dict[str, Any]
+#   resources:
+#     autoscaling_metric: Union[Literal['cpu', 'memory', 'concurrency', 'rps'], NoneType]
+#     autoscaling_target: Union[Annotated[float, Gt], NoneType]
+#     cpu_count: Union[Annotated[float, Gt], NoneType]
+#     gpu_count: Union[Annotated[int, Ge], NoneType]
+#     max_concurrency: Union[Annotated[int, Gt], NoneType]
+#     max_replicas: Union[Annotated[int, Ge], NoneType]
+#     memory: Union[str, NoneType]
+#     min_replicas: Union[Annotated[int, Ge], NoneType]
+# steps:
+#   svc_trainer:
+#     cache_policy: Union[Annotated[CachePolicy, BeforeValidator], NoneType]
+#     enable_artifact_metadata: Union[bool, NoneType]
+#     enable_artifact_visualization: Union[bool, NoneType]
+#     enable_cache: Union[bool, NoneType]
+#     enable_step_logs: Union[bool, NoneType]
+#     environment: Union[Dict[str, str], NoneType]
+#     experiment_tracker: Union[bool, str, NoneType]
+#     extra: Union[Dict[str, Any], NoneType]
+#     failure_hook_source: Union[Annotated[Source, SerializeAsAny, BeforeValidator],
+#       NoneType]
+#     group:
+#       id: str
+#       name: Union[str, NoneType]
+#       type: GroupType
+#     heartbeat_healthy_threshold: int
+#     model:
+#       audience: Union[str, NoneType]
+#       description: Union[str, NoneType]
+#       ethics: Union[str, NoneType]
+#       license: Union[str, NoneType]
+#       limitations: Union[str, NoneType]
+#       model_version_id: Union[UUID, NoneType]
+#       name: str
+#       save_models_to_registry: bool
+#       suppress_class_validation_warnings: bool
+#       tags: Union[List[str], NoneType]
+#       trade_offs: Union[str, NoneType]
+#       use_cases: Union[str, NoneType]
+#       version: Union[ModelStages, int, str, NoneType]
+#     outputs:
+#       trained_model:
+#         artifact_config:
+#           artifact_type: Union[ArtifactType, NoneType]
+#           name: Union[str, NoneType]
+#           run_metadata: Union[Dict[str, Union[str, int, float, bool, Dict[Any, Any],
+#             List[Any], Set[Any], Tuple[Any, ...], Uri, Path, DType, StorageSize]],
+#             NoneType]
+#           tags: Union[List[str], NoneType]
+#           version: Union[int, str, NoneType]
+#         default_materializer_source: Union[Annotated[Source, SerializeAsAny, BeforeValidator],
+#           NoneType]
+#         materializer_source: Union[Tuple[Annotated[Source, SerializeAsAny, BeforeValidator],
+#           ...], NoneType]
+#       training_acc:
+#         artifact_config:
+#           artifact_type: Union[ArtifactType, NoneType]
+#           name: Union[str, NoneType]
+#           run_metadata: Union[Dict[str, Union[str, int, float, bool, Dict[Any, Any],
+#             List[Any], Set[Any], Tuple[Any, ...], Uri, Path, DType, StorageSize]],
+#             NoneType]
+#           tags: Union[List[str], NoneType]
+#           version: Union[int, str, NoneType]
+#         default_materializer_source: Union[Annotated[Source, SerializeAsAny, BeforeValidator],
+#           NoneType]
+#         materializer_source: Union[Tuple[Annotated[Source, SerializeAsAny, BeforeValidator],
+#           ...], NoneType]
+#     parameters: {}
+#     retry:
+#       backoff: int
+#       delay: int
+#       max_retries: int
+#     runtime: Union[StepRuntime, NoneType]
+#     secrets: Union[List[Union[UUID, str]], NoneType]
+#     settings:
+#       docker:
+#         allow_download_from_artifact_store: bool
+#         allow_download_from_code_repository: bool
+#         allow_including_files_in_images: bool
+#         apt_packages: List[str]
+#         build_config:
+#           build_options:
+#             build_args: Union[Dict[str, Any], NoneType]
+#             cache_from: Union[List[str], NoneType]
+#             labels: Union[Dict[str, Any], NoneType]
+#             no_cache: Union[bool, NoneType]
+#             pull: Union[bool, NoneType]
+#             rm: Union[bool, NoneType]
+#             shm_size: Union[int, NoneType]
+#           dockerignore: Union[str, NoneType]
+#         build_context_root: Union[str, NoneType]
+#         build_options: Dict[str, Any]
+#         copy_files: bool
+#         copy_global_config: bool
+#         disable_automatic_requirements_detection: bool
+#         dockerfile: Union[str, NoneType]
+#         dockerignore: Union[str, NoneType]
+#         environment: Dict[str, Any]
+#         image_tag: Union[str, NoneType]
+#         install_deployment_requirements: bool
+#         install_stack_requirements: bool
+#         local_project_install_command: Union[str, NoneType]
+#         parent_image: Union[str, NoneType]
+#         parent_image_build_config:
+#           build_options:
+#             build_args: Union[Dict[str, Any], NoneType]
+#             cache_from: Union[List[str], NoneType]
+#             labels: Union[Dict[str, Any], NoneType]
+#             no_cache: Union[bool, NoneType]
+#             pull: Union[bool, NoneType]
+#             rm: Union[bool, NoneType]
+#             shm_size: Union[int, NoneType]
+#           dockerignore: Union[str, NoneType]
+#         prevent_build_reuse: bool
+#         pyproject_export_command: Union[List[str], NoneType]
+#         pyproject_path: Union[str, NoneType]
+#         python_package_installer: PythonPackageInstaller
+#         python_package_installer_args: Dict[str, Any]
+#         replicate_local_python_environment: Union[List[str], PythonEnvironmentExportMethod,
+#           bool, NoneType]
+#         required_hub_plugins: List[str]
+#         required_integrations: List[str]
+#         requirements: Union[NoneType, str, List[str]]
+#         runtime_environment: Dict[str, Any]
+#         skip_build: bool
+#         source_files: Union[str, NoneType]
+#         target_repository: Union[str, NoneType]
+#         user: Union[str, NoneType]
+#       experiment_tracker.mlflow:
+#         experiment_name: Union[str, NoneType]
+#         nested: bool
+#         tags: Dict[str, Any]
+#       resources:
+#         autoscaling_metric: Union[Literal['cpu', 'memory', 'concurrency', 'rps'],
+#           NoneType]
+#         autoscaling_target: Union[Annotated[float, Gt], NoneType]
+#         cpu_count: Union[Annotated[float, Gt], NoneType]
+#         gpu_count: Union[Annotated[int, Ge], NoneType]
+#         max_concurrency: Union[Annotated[int, Gt], NoneType]
+#         max_replicas: Union[Annotated[int, Ge], NoneType]
+#         memory: Union[str, NoneType]
+#         min_replicas: Union[Annotated[int, Ge], NoneType]
+#     step_operator: Union[bool, str, NoneType]
+#     substitutions: Union[Dict[str, str], NoneType]
+#     success_hook_source: Union[Annotated[Source, SerializeAsAny, BeforeValidator],
+#       NoneType]
+#   training_data_loader:
+#     cache_policy: Union[Annotated[CachePolicy, BeforeValidator], NoneType]
+#     enable_artifact_metadata: Union[bool, NoneType]
+#     enable_artifact_visualization: Union[bool, NoneType]
+#     enable_cache: Union[bool, NoneType]
+#     enable_step_logs: Union[bool, NoneType]
+#     environment: Union[Dict[str, str], NoneType]
+#     experiment_tracker: Union[bool, str, NoneType]
+#     extra: Union[Dict[str, Any], NoneType]
+#     failure_hook_source: Union[Annotated[Source, SerializeAsAny, BeforeValidator],
+#       NoneType]
+#     group:
+#       id: str
+#       name: Union[str, NoneType]
+#       type: GroupType
+#     heartbeat_healthy_threshold: int
+#     model:
+#       audience: Union[str, NoneType]
+#       description: Union[str, NoneType]
+#       ethics: Union[str, NoneType]
+#       license: Union[str, NoneType]
+#       limitations: Union[str, NoneType]
+#       model_version_id: Union[UUID, NoneType]
+#       name: str
+#       save_models_to_registry: bool
+#       suppress_class_validation_warnings: bool
+#       tags: Union[List[str], NoneType]
+#       trade_offs: Union[str, NoneType]
+#       use_cases: Union[str, NoneType]
+#       version: Union[ModelStages, int, str, NoneType]
+#     outputs:
+#       X_test:
+#         artifact_config:
+#           artifact_type: Union[ArtifactType, NoneType]
+#           name: Union[str, NoneType]
+#           run_metadata: Union[Dict[str, Union[str, int, float, bool, Dict[Any, Any],
+#             List[Any], Set[Any], Tuple[Any, ...], Uri, Path, DType, StorageSize]],
+#             NoneType]
+#           tags: Union[List[str], NoneType]
+#           version: Union[int, str, NoneType]
+#         default_materializer_source: Union[Annotated[Source, SerializeAsAny, BeforeValidator],
+#           NoneType]
+#         materializer_source: Union[Tuple[Annotated[Source, SerializeAsAny, BeforeValidator],
+#           ...], NoneType]
+#       X_train:
+#         artifact_config:
+#           artifact_type: Union[ArtifactType, NoneType]
+#           name: Union[str, NoneType]
+#           run_metadata: Union[Dict[str, Union[str, int, float, bool, Dict[Any, Any],
+#             List[Any], Set[Any], Tuple[Any, ...], Uri, Path, DType, StorageSize]],
+#             NoneType]
+#           tags: Union[List[str], NoneType]
+#           version: Union[int, str, NoneType]
+#         default_materializer_source: Union[Annotated[Source, SerializeAsAny, BeforeValidator],
+#           NoneType]
+#         materializer_source: Union[Tuple[Annotated[Source, SerializeAsAny, BeforeValidator],
+#           ...], NoneType]
+#       y_test:
+#         artifact_config:
+#           artifact_type: Union[ArtifactType, NoneType]
+#           name: Union[str, NoneType]
+#           run_metadata: Union[Dict[str, Union[str, int, float, bool, Dict[Any, Any],
+#             List[Any], Set[Any], Tuple[Any, ...], Uri, Path, DType, StorageSize]],
+#             NoneType]
+#           tags: Union[List[str], NoneType]
+#           version: Union[int, str, NoneType]
+#         default_materializer_source: Union[Annotated[Source, SerializeAsAny, BeforeValidator],
+#           NoneType]
+#         materializer_source: Union[Tuple[Annotated[Source, SerializeAsAny, BeforeValidator],
+#           ...], NoneType]
+#       y_train:
+#         artifact_config:
+#           artifact_type: Union[ArtifactType, NoneType]
+#           name: Union[str, NoneType]
+#           run_metadata: Union[Dict[str, Union[str, int, float, bool, Dict[Any, Any],
+#             List[Any], Set[Any], Tuple[Any, ...], Uri, Path, DType, StorageSize]],
+#             NoneType]
+#           tags: Union[List[str], NoneType]
+#           version: Union[int, str, NoneType]
+#         default_materializer_source: Union[Annotated[Source, SerializeAsAny, BeforeValidator],
+#           NoneType]
+#         materializer_source: Union[Tuple[Annotated[Source, SerializeAsAny, BeforeValidator],
+#           ...], NoneType]
+#     parameters: {}
+#     retry:
+#       backoff: int
+#       delay: int
+#       max_retries: int
+#     runtime: Union[StepRuntime, NoneType]
+#     secrets: Union[List[Union[UUID, str]], NoneType]
+#     settings:
+#       docker:
+#         allow_download_from_artifact_store: bool
+#         allow_download_from_code_repository: bool
+#         allow_including_files_in_images: bool
+#         apt_packages: List[str]
+#         build_config:
+#           build_options:
+#             build_args: Union[Dict[str, Any], NoneType]
+#             cache_from: Union[List[str], NoneType]
+#             labels: Union[Dict[str, Any], NoneType]
+#             no_cache: Union[bool, NoneType]
+#             pull: Union[bool, NoneType]
+#             rm: Union[bool, NoneType]
+#             shm_size: Union[int, NoneType]
+#           dockerignore: Union[str, NoneType]
+#         build_context_root: Union[str, NoneType]
+#         build_options: Dict[str, Any]
+#         copy_files: bool
+#         copy_global_config: bool
+#         disable_automatic_requirements_detection: bool
+#         dockerfile: Union[str, NoneType]
+#         dockerignore: Union[str, NoneType]
+#         environment: Dict[str, Any]
+#         image_tag: Union[str, NoneType]
+#         install_deployment_requirements: bool
+#         install_stack_requirements: bool
+#         local_project_install_command: Union[str, NoneType]
+#         parent_image: Union[str, NoneType]
+#         parent_image_build_config:
+#           build_options:
+#             build_args: Union[Dict[str, Any], NoneType]
+#             cache_from: Union[List[str], NoneType]
+#             labels: Union[Dict[str, Any], NoneType]
+#             no_cache: Union[bool, NoneType]
+#             pull: Union[bool, NoneType]
+#             rm: Union[bool, NoneType]
+#             shm_size: Union[int, NoneType]
+#           dockerignore: Union[str, NoneType]
+#         prevent_build_reuse: bool
+#         pyproject_export_command: Union[List[str], NoneType]
+#         pyproject_path: Union[str, NoneType]
+#         python_package_installer: PythonPackageInstaller
+#         python_package_installer_args: Dict[str, Any]
+#         replicate_local_python_environment: Union[List[str], PythonEnvironmentExportMethod,
+#           bool, NoneType]
+#         required_hub_plugins: List[str]
+#         required_integrations: List[str]
+#         requirements: Union[NoneType, str, List[str]]
+#         runtime_environment: Dict[str, Any]
+#         skip_build: bool
+#         source_files: Union[str, NoneType]
+#         target_repository: Union[str, NoneType]
+#         user: Union[str, NoneType]
+#       experiment_tracker.mlflow:
+#         experiment_name: Union[str, NoneType]
+#         nested: bool
+#         tags: Dict[str, Any]
+#       resources:
+#         autoscaling_metric: Union[Literal['cpu', 'memory', 'concurrency', 'rps'],
+#           NoneType]
+#         autoscaling_target: Union[Annotated[float, Gt], NoneType]
+#         cpu_count: Union[Annotated[float, Gt], NoneType]
+#         gpu_count: Union[Annotated[int, Ge], NoneType]
+#         max_concurrency: Union[Annotated[int, Gt], NoneType]
+#         max_replicas: Union[Annotated[int, Ge], NoneType]
+#         memory: Union[str, NoneType]
+#         min_replicas: Union[Annotated[int, Ge], NoneType]
+#     step_operator: Union[bool, str, NoneType]
+#     substitutions: Union[Dict[str, str], NoneType]
+#     success_hook_source: Union[Annotated[Source, SerializeAsAny, BeforeValidator],
+#       NoneType]
+# substitutions: Union[Dict[str, str], NoneType]
+# success_hook_source: Union[Annotated[Source, SerializeAsAny, BeforeValidator], NoneType]
+# tags: Union[List[Union[str, Tag]], NoneType]

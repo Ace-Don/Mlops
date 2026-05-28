@@ -1,0 +1,14 @@
+enable_cache: true
+
+parameters:
+  gamma: 0.0015
+
+model:
+  name: svc_iris_classifier
+  version: null  # auto-increments
+  license: Apache 2.0
+  description: SVC model trained on iris dataset
+  tags:
+    - svc
+    - iris
+    - classification
