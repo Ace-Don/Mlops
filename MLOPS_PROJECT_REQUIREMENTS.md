@@ -62,3 +62,10 @@ Production ML systems are SOFTWARE systems. Steps break, APIs fail, schemas chan
 For fully scaled enterprise environments:
 - **CI/CD Pipelines**: Automated testing, building, and deployment of ML pipelines and serving APIs.
 - **Infrastructure as Code (IaC)**: Manage cloud resources systematically using tools like Terraform.
+
+## 13. TODO for Production (Identified Gaps)
+*   **Feature Store Integration**: Move away from local CSVs. Ingest raw transactions into a database/data warehouse, compute rolling window features via a scheduled job or streaming engine, and store the results in a Feature Store (e.g., Feast) for low-latency inference.
+*   **Cloud Orchestration & Compute**: Configure a remote ZenML stack (e.g., Kubeflow, Vertex AI, or AWS SageMaker) to execute pipelines on scalable cloud infrastructure rather than the local machine.
+*   **Distributed Processing**: For massive datasets, transition the Pandas-based feature engineering to a distributed engine like Apache Spark or Ray.
+*   **CI/CD Automation**: Implement GitHub Actions or GitLab CI to automatically test, build, and deploy pipeline changes upon git push.
+*   **Drift Detection**: Integrate Evidently AI or Whylogs into the pipeline to monitor incoming data for Concept and Data Drift, automatically triggering retraining when fraud patterns change.
