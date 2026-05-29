@@ -6,3 +6,5 @@ mlflow
 pandas
 pyarrow
 zenml
+zenml[evidently]
+evidently

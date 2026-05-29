@@ -26,6 +26,8 @@ from zenml.logger import get_logger
 from pipelines import (
     feature_engineering,
 )
+from zenml.integrations.evidently.metrics import EvidentlyMetricConfig
+from zenml.integrations.evidently.steps import evidently_report_step
 
 logger = get_logger(__name__)
 
@@ -62,6 +64,17 @@ def training(
         client = Client()
         dataset_trn = client.get_artifact_version(name_id_or_prefix=train_dataset_id)
         dataset_tst = client.get_artifact_version(name_id_or_prefix=test_dataset_id)
+
+    # Calculate Data Drift
+    evidently_report_step.with_options(
+        name="data_drift_detector",
+        parameters=dict(
+            metrics=[EvidentlyMetricConfig.metric("DataDriftPreset")]
+        )
+    )(
+        reference_dataset=dataset_trn,
+        comparison_dataset=dataset_tst,
+    )
 
     model = model_trainer(dataset_trn=dataset_trn, target=target, model_type=model_type)
 
