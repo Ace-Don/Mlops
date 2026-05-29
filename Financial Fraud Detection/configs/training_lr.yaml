@@ -1,0 +1,32 @@
+# environment configuration
+settings:
+  docker:
+    required_integrations:
+      - sklearn
+      - xgboost
+      - lightgbm
+      - mlflow
+    requirements:
+      - pyarrow
+      - catboost
+      - pandas
+
+# configuration of the Model Control Plane
+model:
+  name: financial_fraud_classifier
+  version: lr
+  license: Apache 2.0
+  description: A financial fraud classifier using Logistic Regression
+  tags: ["fraud_detection", "classifier", "lr"]
+
+# Configure the pipeline
+parameters:
+  model_type: "lr"
+  target: "fraud"
+
+# Enable caching for steps
+steps:
+  model_trainer:
+    enable_cache: True
+  model_evaluator:
+    enable_cache: True
