@@ -1,0 +1,11 @@
+# Fraud Detection — XGBoost Training Config
+# Pipeline: fraud_training_pipeline with model_type='xgb'
+
+model:
+  name: fraud_detection_model
+
+parameters:
+  target: "fraud"
+  model_type: "xgb"
+  min_train_accuracy: 0.80
+  min_test_accuracy: 0.80

@@ -1,0 +1,7 @@
+# Fraud Detection — Feature Engineering Pipeline Config
+# Runs: fraud_data_loader → fraud_feature_engineer → fraud_data_splitter → fraud_data_preprocessor
+
+parameters:
+  target: "fraud"
+  test_size: 0.3
+  random_state: 10
