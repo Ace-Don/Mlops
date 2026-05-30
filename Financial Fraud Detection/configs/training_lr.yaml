@@ -9,3 +9,11 @@ parameters:
   model_type: "lr"
   min_train_accuracy: 0.80
   min_test_accuracy: 0.80
+  
+  # SMOTE hyperparameters
+  smote_k_neighbors: 5
+  smote_sampling_strategy: 0.8
+  
+  # Logistic Regression hyperparameters
+  lr_solver: "liblinear"
+  lr_max_iter: 1000

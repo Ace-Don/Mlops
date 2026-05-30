@@ -9,3 +9,13 @@ parameters:
   model_type: "catboost"
   min_train_accuracy: 0.80
   min_test_accuracy: 0.80
+  
+  # SMOTE hyperparameters
+  smote_k_neighbors: 5
+  smote_sampling_strategy: 0.8
+  
+  # CatBoost hyperparameters
+  cat_iterations: 100
+  cat_depth: 3
+  cat_learning_rate: 0.1
+  cat_l2_leaf_reg: 3.0

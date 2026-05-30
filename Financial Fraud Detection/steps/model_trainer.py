@@ -19,6 +19,28 @@ def fraud_model_trainer(
     dataset_trn: pd.DataFrame,
     model_type: str = "lr",
     target: str = "fraud",
+    smote_k_neighbors: int = 5,
+    smote_sampling_strategy: float = 0.8,
+    lr_solver: str = "liblinear",
+    lr_max_iter: int = 1000,
+    xgb_n_estimators: int = 100,
+    xgb_max_depth: int = 3,
+    xgb_learning_rate: float = 0.1,
+    xgb_subsample: float = 1.0,
+    xgb_colsample_bytree: float = 1.0,
+    xgb_scale_pos_weight: float = 1.0,
+    xgb_eval_metric: str = "logloss",
+    cat_iterations: int = 100,
+    cat_depth: int = 3,
+    cat_learning_rate: float = 0.1,
+    cat_l2_leaf_reg: float = 3.0,
+    lgb_n_estimators: int = 100,
+    lgb_num_leaves: int = 31,
+    lgb_learning_rate: float = 0.1,
+    lgb_subsample: float = 1.0,
+    lgb_colsample_bytree: float = 1.0,
+    lgb_reg_alpha: float = 0.0,
+    lgb_reg_lambda: float = 0.0,
 ) -> Annotated[
     Any,
     ArtifactConfig(name="fraud_trained_model", artifact_type=ArtifactType.MODEL),
@@ -65,8 +87,8 @@ def fraud_model_trainer(
         mlflow.log_param("model_type", model_type)
         mlflow.log_param("target", target)
         mlflow.log_param("smote_random_state", 42)
-        mlflow.log_param("smote_k_neighbors", 5)
-        mlflow.log_param("smote_sampling_strategy", 0.8)
+        mlflow.log_param("smote_k_neighbors", smote_k_neighbors)
+        mlflow.log_param("smote_sampling_strategy", smote_sampling_strategy)
         mlflow.log_param("training_samples", len(dataset_trn))
         mlflow.log_param("training_features", len(dataset_trn.columns) - 1)
 
@@ -77,27 +99,66 @@ def fraud_model_trainer(
         if model_type == "lr":
             from sklearn.linear_model import LogisticRegression
             clf = LogisticRegression(
-                solver="liblinear",
+                solver=lr_solver,
                 random_state=42,
-                max_iter=1000,
+                max_iter=lr_max_iter,
             )
-            mlflow.log_param("solver", "liblinear")
-            mlflow.log_param("max_iter", 1000)
+            mlflow.log_param("solver", lr_solver)
+            mlflow.log_param("max_iter", lr_max_iter)
 
         elif model_type == "xgb":
             from xgboost import XGBClassifier
             clf = XGBClassifier(
-                eval_metric="logloss",
+                n_estimators=xgb_n_estimators,
+                max_depth=xgb_max_depth,
+                learning_rate=xgb_learning_rate,
+                subsample=xgb_subsample,
+                colsample_bytree=xgb_colsample_bytree,
+                scale_pos_weight=xgb_scale_pos_weight,
+                eval_metric=xgb_eval_metric,
                 random_state=42,
             )
+            mlflow.log_params({
+                "n_estimators": xgb_n_estimators, "max_depth": xgb_max_depth,
+                "learning_rate": xgb_learning_rate, "subsample": xgb_subsample,
+                "colsample_bytree": xgb_colsample_bytree, "scale_pos_weight": xgb_scale_pos_weight
+            })
 
         elif model_type == "catboost":
             from catboost import CatBoostClassifier
-            clf = CatBoostClassifier(verbose=0, random_state=42)
+            clf = CatBoostClassifier(
+                iterations=cat_iterations,
+                depth=cat_depth,
+                learning_rate=cat_learning_rate,
+                l2_leaf_reg=cat_l2_leaf_reg,
+                verbose=0,
+                random_state=42
+            )
+            mlflow.log_params({
+                "iterations": cat_iterations, "depth": cat_depth,
+                "learning_rate": cat_learning_rate, "l2_leaf_reg": cat_l2_leaf_reg
+            })
 
         elif model_type == "lightgbm":
             from lightgbm import LGBMClassifier
-            clf = LGBMClassifier(random_state=42, n_jobs=-1, verbose=-1)
+            clf = LGBMClassifier(
+                n_estimators=lgb_n_estimators,
+                num_leaves=lgb_num_leaves,
+                learning_rate=lgb_learning_rate,
+                subsample=lgb_subsample,
+                colsample_bytree=lgb_colsample_bytree,
+                reg_alpha=lgb_reg_alpha,
+                reg_lambda=lgb_reg_lambda,
+                random_state=42,
+                n_jobs=-1,
+                verbose=-1
+            )
+            mlflow.log_params({
+                "n_estimators": lgb_n_estimators, "num_leaves": lgb_num_leaves,
+                "learning_rate": lgb_learning_rate, "subsample": lgb_subsample,
+                "colsample_bytree": lgb_colsample_bytree, "reg_alpha": lgb_reg_alpha,
+                "reg_lambda": lgb_reg_lambda
+            })
 
         else:
             raise ValueError(
@@ -107,7 +168,7 @@ def fraud_model_trainer(
 
         # ── Build and fit imblearn Pipeline ───────────────────────────────────
         model = Pipeline([
-            ("smote", SMOTE(random_state=42, k_neighbors=5, sampling_strategy=0.8)),
+            ("smote", SMOTE(random_state=42, k_neighbors=smote_k_neighbors, sampling_strategy=smote_sampling_strategy)),
             ("scaler", StandardScaler()),
             ("model", clf),
         ])
