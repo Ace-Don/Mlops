@@ -87,3 +87,16 @@ The API key is configured using the `API_KEY` environment variable.
 If you connect via MySQL Workbench and run `SELECT * FROM inference_logs;` but find it empty, this is because:
 1. **No predictions have been requested yet:** The tables are initialized as empty on startup. You must make at least one request to `POST /predict` (using the Swagger UI at `http://localhost:8000/docs` or a client like `curl`) to write logs to the database.
 2. **Background Task Threading:** Predictions are written asynchronously using FastAPI `BackgroundTasks`. If there's an error during insertion, it is caught and printed to the terminal console of the FastAPI process without crashing the API response. Check the FastAPI console log to see if any SQL insertion warnings or errors occurred.
+
+### 3. I got a 500 Error: "No model version found... with version identifier staging"
+This is expected behavior if you have not successfully trained a new candidate model yet. 
+* **The Lifecycle:** In this architecture, a model is only promoted to the **`staging`** stage (making it eligible to be a Shadow Model) if a retraining loop finishes AND the new candidate model achieves a higher test accuracy than the current Production model.
+* **The Fix:** You must trigger a retraining job (via `POST /retrain` or the Streamlit UI). If the retrained model beats the production threshold, ZenML will place it in `staging`. Only then can you successfully call `POST /reload-model?load_as_shadow=true`.
+
+### 4. How do I use the Streamlit Control Panel?
+A unified operational dashboard is provided via Streamlit (`streamlit_app.py`) to easily manage all endpoints without writing curl requests or using Swagger UI.
+* **Launch Command:** `streamlit run streamlit_app.py`
+* **Features:**
+  * **Live Predictions & Feedback:** Submit transactions and log verified ground truth labels.
+  * **Model Operations:** Buttons to trigger background Celery retrains, fetch staging models as shadow deployments, and atomically promote shadows to production.
+  * **Redis Features Tab:** Provides a built-in UI to view the live caching of customer rolling transaction counts directly from the Redis container, eliminating the need for a separate Redis GUI.
