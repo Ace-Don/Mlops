@@ -22,15 +22,15 @@ logger = logging.getLogger("celery_worker")
 app = Celery("fraud_tasks", broker=BROKER_URL, backend=BROKER_URL)
 
 @app.task(name="run_training_pipeline_task")
-def run_training_pipeline_task():
+def run_training_pipeline_task(model_type: str = "lr"):
     """
     Executes the ZenML training pipeline as a decoupled Celery task.
     """
-    logger.info("Executing training pipeline via Celery task...")
+    logger.info(f"Executing training pipeline for model '{model_type}' via Celery task...")
     try:
         # We run it as a subprocess to keep the Celery worker environment clean and separate from ZenML execution
         result = subprocess.run(
-            ["python", "run.py"], 
+            ["python", "run.py", "--training-pipeline", f"--model-type={model_type}"], 
             capture_output=True, 
             text=True, 
             check=True

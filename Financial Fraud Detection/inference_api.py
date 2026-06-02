@@ -497,13 +497,14 @@ async def receive_feedback(feedback: FeedbackData, db_pool: aiomysql.Pool = Depe
     return {"message": "Feedback successfully recorded."}
 
 @app.post("/retrain", tags=["Ops"], dependencies=[Depends(verify_api_key)])
-async def trigger_retraining(request: Request, db_pool: aiomysql.Pool = Depends(get_db_pool)):
+async def trigger_retraining(request: Request, model_type: str = "lr", db_pool: aiomysql.Pool = Depends(get_db_pool)):
     """
     Decoupled Retraining Trigger via Celery Task Queue.
+    Accepts model_type parameter to dynamically select algorithm.
     """
     try:
         from celery_worker import run_training_pipeline_task
-        run_training_pipeline_task.delay()
+        run_training_pipeline_task.delay(model_type)
         logger.info("Retraining job dispatched to Celery.", extra={"event": "queue_retraining"})
         return {"message": "Retraining job queued! Celery workers will execute it."}
     except Exception as e:

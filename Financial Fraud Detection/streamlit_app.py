@@ -123,10 +123,20 @@ with t_ops:
     with col_o3:
         st.write("**3. Retrain Pipeline**")
         st.caption("Offload training job to background Celery worker.")
+        
+        model_options = {
+            "Logistic Regression": "lr",
+            "XGBoost": "xgb",
+            "CatBoost": "catboost",
+            "LightGBM": "lightgbm"
+        }
+        selected_model_name = st.selectbox("Select Algorithm", list(model_options.keys()))
+        selected_model_id = model_options[selected_model_name]
+        
         if st.button("Trigger Retraining", use_container_width=True):
-            resp = api_post("/retrain", auth=True)
+            resp = api_post("/retrain", params={"model_type": selected_model_id}, auth=True)
             if resp and resp.status_code == 200:
-                st.success("Queued in Celery! Check worker terminal.")
+                st.success(f"Queued {selected_model_name} in Celery!")
             else:
                 st.error("Failed to queue job.")
 
