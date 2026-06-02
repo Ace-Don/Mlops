@@ -11,17 +11,17 @@ PROMOTION_ACCURACY_THRESHOLD = 0.80
 
 
 @step
-def fraud_model_promoter(accuracy: float, stage: str = "production") -> bool:
+def fraud_model_promoter(accuracy: float, stage: str = "staging") -> bool:
     """Fraud model promotion step.
 
     Decides whether to promote the newly trained model to the given stage
-    (default: 'production').
+    (default: 'staging').
 
     Promotion logic:
       1. If accuracy < PROMOTION_ACCURACY_THRESHOLD (80%): reject immediately.
-      2. If no model currently exists in the target stage: promote unconditionally.
-      3. If a model already exists in the target stage: compare test_accuracy
-         stored in its run_metadata.  Promote only if the new model is better.
+      2. If no 'production' model currently exists: promote directly to 'production' (bootstrap).
+      3. If a 'production' model already exists: compare test_accuracy.
+         Promote to 'staging' only if the new model is better, creating a candidate shadow model.
 
     The comparison uses the 'test_accuracy' key written to artifact run_metadata
     by fraud_model_evaluator via log_metadata().
@@ -59,11 +59,11 @@ def fraud_model_promoter(accuracy: float, stage: str = "production") -> bool:
         client = Client()
 
         try:
-            # Check if a production model already exists
-            stage_model = client.get_model_version(current_model.name, stage)
+            # Check if a production model already exists to compare against
+            prod_stage_model = client.get_model_version(current_model.name, "production")
 
             prod_accuracy = float(
-                stage_model.get_artifact("fraud_trained_model")
+                prod_stage_model.get_artifact("fraud_trained_model")
                 .run_metadata["test_accuracy"]
             )
             mlflow.log_metric("fraud_production_accuracy", prod_accuracy)
@@ -84,14 +84,14 @@ def fraud_model_promoter(accuracy: float, stage: str = "production") -> bool:
                 mlflow.log_param("fraud_promotion_status", "rejected_production_better")
 
         except KeyError:
-            # No model in the target stage — promote unconditionally
+            # No model in the production stage — promote unconditionally to production to bootstrap
             logger.info(
-                f"No existing model in stage '{stage}'. "
-                f"Promoting first model ({accuracy*100:.2f}%)."
+                f"No existing model in stage 'production'. "
+                f"Promoting first model ({accuracy*100:.2f}%) directly to 'production'."
             )
-            current_model.set_stage(stage, force=True)
+            current_model.set_stage("production", force=True)
             is_promoted = True
-            mlflow.log_param("fraud_promotion_status", "promoted_first_model")
+            mlflow.log_param("fraud_promotion_status", "promoted_first_model_to_production")
 
         mlflow.log_param("fraud_was_promoted", str(is_promoted))
 
