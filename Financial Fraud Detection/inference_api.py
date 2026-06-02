@@ -90,7 +90,7 @@ def fetch_production_model_from_zenml() -> Tuple[str, object, object]:
     
     # Load physical artifacts into memory
     model = model_version.get_artifact("fraud_trained_model").load()
-    preprocessor = model_version.get_artifact("fraud_preprocessing_pipeline").load()
+    preprocessor = model_version.get_artifact("fraud_preprocess_pipeline").load()
     
     version_id = model_version.name
     logger.info("Successfully fetched model artifacts", extra={"model_version": version_id})
