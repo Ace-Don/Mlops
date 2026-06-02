@@ -22,11 +22,13 @@ from contextlib import asynccontextmanager
 from typing import Dict, List, Tuple
 
 import aiomysql
+import redis.asyncio as redis_async
+from prometheus_fastapi_instrumentator import Instrumentator
 import mlflow
 import pandas as pd
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, Security
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel, Field
 from pythonjsonlogger import jsonlogger
@@ -49,6 +51,9 @@ MYSQL_PORT = int(os.getenv("MYSQL_PORT", 3306))
 MYSQL_USER = os.getenv("MYSQL_USER", "root")
 MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "mysqlrootpassword")
 MYSQL_DB = os.getenv("MYSQL_DB", "fraud_inference_db")
+
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 
 API_KEY = os.getenv("API_KEY", "super-secret-key")
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
@@ -79,14 +84,14 @@ limiter = Limiter(key_func=get_remote_address)
 # ============================================================================
 # ATOMIC MODEL LOADING & STATE MANAGEMENT
 # ============================================================================
-def fetch_production_model_from_zenml() -> Tuple[str, object, object]:
+def fetch_model_from_zenml(stage: ModelStages = ModelStages.PRODUCTION) -> Tuple[str, object, object]:
     """
-    Connects to ZenML to fetch the active production model.
+    Connects to ZenML to fetch the active model for a given stage.
     Returns: (version_name, model_artifact, preprocessor_artifact)
     """
     logger.info("Connecting to ZenML artifact store...")
     client = Client()
-    model_version = client.get_model_version("fraud_detection_model", ModelStages.PRODUCTION)
+    model_version = client.get_model_version("fraud_detection_model", stage)
     
     # Load physical artifacts into memory
     model = model_version.get_artifact("fraud_trained_model").load()
@@ -109,12 +114,17 @@ async def lifespan(app: FastAPI):
     # 1. Initialize DB (Fails fast if down)
     app.state.db_pool = await init_database_pool()
     
+    # 1.5 Initialize Redis Feature Store
+    logger.info("Connecting to Redis Feature Store...")
+    app.state.redis_pool = redis_async.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
+    
     # 2. Initialize Model Version Pointer Dictionary and Lock
     app.state.models = {}
     app.state.model_reload_lock = asyncio.Lock()
+    app.state.shadow_model_version = None
     
     # 3. Load initial model and set active pointer
-    version_id, model, preprocessor = fetch_production_model_from_zenml()
+    version_id, model, preprocessor = fetch_model_from_zenml(ModelStages.PRODUCTION)
     app.state.models[version_id] = (model, preprocessor)
     app.state.active_model_version = version_id
     
@@ -126,6 +136,8 @@ async def lifespan(app: FastAPI):
     if app.state.db_pool:
         app.state.db_pool.close()
         await app.state.db_pool.wait_closed()
+    if getattr(app.state, "redis_pool", None):
+        await app.state.redis_pool.close()
 
 
 app = FastAPI(
@@ -136,6 +148,9 @@ app = FastAPI(
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Advanced Observability: Mount Prometheus Metrics
+Instrumentator().instrument(app).expose(app)
 
 
 # --- Dependencies ---
@@ -152,6 +167,12 @@ def get_db_pool(request: Request) -> aiomysql.Pool:
     if request.app.state.db_pool is None:
         raise HTTPException(status_code=503, detail="Database pool is unavailable.")
     return request.app.state.db_pool
+
+def get_redis_pool(request: Request) -> redis_async.Redis:
+    """Dependency injection to access Redis Feature Store."""
+    if not getattr(request.app.state, "redis_pool", None):
+        raise HTTPException(status_code=503, detail="Redis pool is unavailable.")
+    return request.app.state.redis_pool
 
 def verify_api_key(api_key_header: str = Security(api_key_header)):
     """Validates the X-API-Key header for sensitive ops routes."""
@@ -191,6 +212,7 @@ async def init_database_pool() -> aiomysql.Pool:
                     ground_truth            INT,
                     ground_truth_timestamp  DATETIME,
                     model_version           VARCHAR(255),
+                    shadow_prediction       INT,
                     api_response_time_ms    DOUBLE
                 )
             """)
@@ -218,6 +240,7 @@ async def db_log_prediction(
     probability_fraud: float,
     model_version: str,
     response_time_ms: float,
+    shadow_prediction: int = None
 ):
     """Background task to insert predictions asynchronously without blocking the API."""
     try:
@@ -227,12 +250,12 @@ async def db_log_prediction(
                     """
                     INSERT INTO inference_logs
                     (input_features, prediction, confidence, probability_legit,
-                     probability_fraud, model_version, api_response_time_ms)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                     probability_fraud, model_version, shadow_prediction, api_response_time_ms)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         json.dumps(input_features), prediction, confidence,
-                        probability_legit, probability_fraud, model_version, response_time_ms
+                        probability_legit, probability_fraud, model_version, shadow_prediction, response_time_ms
                     )
                 )
     except Exception as e:
@@ -258,13 +281,11 @@ async def db_update_ground_truth(pool: aiomysql.Pool, prediction_id: int, actual
 # PYDANTIC MODELS & VALIDATION
 # ============================================================================
 class TransactionData(BaseModel):
+    customer_id: str = Field(..., description="Unique customer identifier")
     age: str = Field(..., description="Age group (e.g. '1', '2', '3', 'U')")
     gender: str = Field(..., description="Gender (e.g. 'M', 'F', 'E')")
     category: str = Field(..., description="Transaction category")
     amount: float = Field(..., description="Transaction amount")
-    count_1_day: float = Field(..., description="Transactions in last 1 day")
-    count_7_days: float = Field(..., description="Transactions in last 7 days")
-    count_30_days: float = Field(..., description="Transactions in last 30 days")
 
 
 class PredictionResponse(BaseModel):
@@ -280,6 +301,419 @@ class PredictionResponse(BaseModel):
 class FeedbackData(BaseModel):
     prediction_id: int = Field(..., description="ID returned from logs endpoint")
     actual_fraud: int = Field(..., description="Actual label: 0=legit, 1=fraud")
+
+
+# ============================================================================
+# ROOT & UTILITY ENDPOINTS
+# ============================================================================
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def root(request: Request):
+    """Serve a premium, informative landing page and API status dashboard."""
+    active_version = getattr(request.app.state, "active_model_version", "Unknown")
+    loaded_versions = list(getattr(request.app.state, "models", {}).keys())
+    db_pool = getattr(request.app.state, "db_pool", None)
+    
+    db_status = "Online" if db_pool is not None else "Offline"
+    db_color = "#10b981" if db_pool is not None else "#ef4444"
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Financial Fraud Detector API - Dashboard</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+            :root {{
+                --bg-primary: #0b0f19;
+                --bg-secondary: #131a2c;
+                --bg-card: #1b253b;
+                --text-primary: #f8fafc;
+                --text-secondary: #94a3b8;
+                --accent-emerald: #10b981;
+                --accent-blue: #3b82f6;
+                --accent-purple: #8b5cf6;
+                --border-color: #2e3c5a;
+            }}
+            
+            * {{
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }}
+            
+            body {{
+                font-family: 'Plus Jakarta Sans', sans-serif;
+                background-color: var(--bg-primary);
+                color: var(--text-primary);
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                padding: 2rem;
+                overflow-x: hidden;
+            }}
+
+            /* Glow effects */
+            .glow-bg {{
+                position: absolute;
+                width: 600px;
+                height: 600px;
+                background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, rgba(139, 92, 246, 0.05) 50%, rgba(0,0,0,0) 70%);
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                z-index: -1;
+                pointer-events: none;
+            }}
+
+            .container {{
+                width: 100%;
+                max-width: 900px;
+                background: rgba(19, 26, 44, 0.6);
+                backdrop-filter: blur(12px);
+                border: 1px solid var(--border-color);
+                border-radius: 24px;
+                padding: 3rem;
+                box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+                position: relative;
+            }}
+
+            .header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px solid var(--border-color);
+                padding-bottom: 2rem;
+                margin-bottom: 2.5rem;
+            }}
+
+            .title-section {{
+                text-align: left;
+            }}
+
+            .title-section h1 {{
+                font-size: 2.25rem;
+                font-weight: 700;
+                letter-spacing: -0.025em;
+                background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                margin-bottom: 0.5rem;
+            }}
+
+            .subtitle {{
+                color: var(--text-secondary);
+                font-size: 1rem;
+            }}
+
+            .status-badge {{
+                display: flex;
+                align-items: center;
+                background: rgba(16, 185, 129, 0.1);
+                border: 1px solid rgba(16, 185, 129, 0.2);
+                padding: 0.5rem 1rem;
+                border-radius: 9999px;
+                font-weight: 600;
+                font-size: 0.875rem;
+                color: var(--accent-emerald);
+            }}
+
+            .pulse-dot {{
+                width: 8px;
+                height: 8px;
+                background-color: var(--accent-emerald);
+                border-radius: 50%;
+                margin-right: 0.5rem;
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+                animation: pulse 1.8s infinite;
+            }}
+
+            @keyframes pulse {{
+                0% {{
+                    transform: scale(0.95);
+                    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+                }}
+                70% {{
+                    transform: scale(1);
+                    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+                }}
+                100% {{
+                    transform: scale(0.95);
+                    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+                }}
+            }}
+
+            .grid-status {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 1.5rem;
+                margin-bottom: 2.5rem;
+            }}
+
+            .card {{
+                background: var(--bg-card);
+                border: 1px solid var(--border-color);
+                border-radius: 16px;
+                padding: 1.5rem;
+                transition: transform 0.2s ease, border-color 0.2s ease;
+            }}
+
+            .card:hover {{
+                transform: translateY(-2px);
+                border-color: rgba(59, 130, 246, 0.4);
+            }}
+
+            .card-title {{
+                font-size: 0.875rem;
+                color: var(--text-secondary);
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                margin-bottom: 0.5rem;
+                font-weight: 600;
+            }}
+
+            .card-value {{
+                font-size: 1.25rem;
+                font-weight: 700;
+                word-break: break-all;
+            }}
+
+            .endpoints-section {{
+                margin-bottom: 2.5rem;
+            }}
+
+            .section-title {{
+                font-size: 1.25rem;
+                font-weight: 600;
+                margin-bottom: 1.25rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }}
+
+            .endpoint-row {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: rgba(27, 37, 59, 0.4);
+                border: 1px solid var(--border-color);
+                border-radius: 12px;
+                padding: 1rem 1.5rem;
+                margin-bottom: 0.75rem;
+                transition: background-color 0.2s ease;
+            }}
+
+            .endpoint-row:hover {{
+                background: rgba(27, 37, 59, 0.7);
+            }}
+
+            .endpoint-meta {{
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+            }}
+
+            .method {{
+                font-size: 0.75rem;
+                font-weight: 700;
+                padding: 0.25rem 0.6rem;
+                border-radius: 6px;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                width: 70px;
+                text-align: center;
+            }}
+
+            .method.get {{
+                background: rgba(139, 92, 246, 0.15);
+                color: var(--accent-purple);
+                border: 1px solid rgba(139, 92, 246, 0.3);
+            }}
+
+            .method.post {{
+                background: rgba(59, 130, 246, 0.15);
+                color: var(--accent-blue);
+                border: 1px solid rgba(59, 130, 246, 0.3);
+            }}
+
+            .path {{
+                font-family: monospace;
+                font-size: 1rem;
+                font-weight: 600;
+                color: #e2e8f0;
+            }}
+
+            .desc {{
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+                text-align: right;
+                max-width: 50%;
+            }}
+
+            .btn-group {{
+                display: flex;
+                gap: 1rem;
+                justify-content: center;
+            }}
+
+            .btn {{
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0.75rem 2rem;
+                border-radius: 12px;
+                font-weight: 600;
+                text-decoration: none;
+                transition: all 0.2s ease;
+                cursor: pointer;
+            }}
+
+            .btn-primary {{
+                background: var(--accent-blue);
+                color: #fff;
+                box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.4);
+            }}
+
+            .btn-primary:hover {{
+                background: #2563eb;
+                transform: translateY(-1px);
+                box-shadow: 0 6px 20px 0 rgba(59, 130, 246, 0.6);
+            }}
+
+            .btn-secondary {{
+                background: transparent;
+                color: var(--text-primary);
+                border: 1px solid var(--border-color);
+            }}
+
+            .btn-secondary:hover {{
+                background: rgba(255, 255, 255, 0.05);
+                border-color: #475569;
+                transform: translateY(-1px);
+            }}
+
+            .footer {{
+                margin-top: 3rem;
+                text-align: center;
+                color: var(--text-secondary);
+                font-size: 0.75rem;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+            }}
+
+            @media (max-width: 640px) {{
+                .container {{
+                    padding: 1.5rem;
+                }}
+                .header {{
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 1rem;
+                }}
+                .endpoint-row {{
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 0.5rem;
+                }}
+                .desc {{
+                    text-align: left;
+                    max-width: 100%;
+                }}
+                .btn-group {{
+                    flex-direction: column;
+                }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="glow-bg"></div>
+        <div class="container">
+            <div class="header">
+                <div class="title-section">
+                    <h1>Financial Fraud Detector</h1>
+                    <div class="subtitle">Enterprise Inference Engine & MLOps Control Panel</div>
+                </div>
+                <div class="status-badge">
+                    <span class="pulse-dot"></span>
+                    Operational
+                </div>
+            </div>
+
+            <div class="grid-status">
+                <div class="card">
+                    <div class="card-title">Active Model Version</div>
+                    <div class="card-value" style="color: var(--accent-blue);">{active_version}</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Shadow Model Version</div>
+                    <div class="card-value" style="color: var(--accent-purple);">{getattr(request.app.state, 'shadow_model_version', 'None')}</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Database Status</div>
+                    <div class="card-value" style="color: {db_color};">{db_status}</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Loaded Versions</div>
+                    <div class="card-value" style="font-size: 0.95rem; font-family: monospace; color: var(--text-secondary); margin-top: 0.25rem;">
+                        {", ".join(loaded_versions) if loaded_versions else "None"}
+                    </div>
+                </div>
+            </div>
+
+            <div class="endpoints-section">
+                <div class="section-title">
+                    Available API Endpoints
+                </div>
+                
+                <div class="endpoint-row">
+                    <div class="endpoint-meta">
+                        <span class="method post">POST</span>
+                        <span class="path">/predict</span>
+                    </div>
+                    <div class="desc">Real-time fraud prediction and risk scoring.</div>
+                </div>
+
+                <div class="endpoint-row">
+                    <div class="endpoint-meta">
+                        <span class="method post">POST</span>
+                        <span class="path">/retrain</span>
+                    </div>
+                    <div class="desc">Queues an asynchronous retraining job (Auth Required).</div>
+                </div>
+
+                <div class="endpoint-row">
+                    <div class="endpoint-meta">
+                        <span class="method post">POST</span>
+                        <span class="path">/reload-model</span>
+                    </div>
+                    <div class="desc">Hot-swaps the serving model atomically (Auth Required).</div>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <a href="/docs" class="btn btn-primary">Open Swagger UI Docs</a>
+                <a href="/redoc" class="btn btn-secondary">Open ReDoc Reader</a>
+            </div>
+        </div>
+        <div class="footer">
+            Financial Fraud Detection MLOps • Serviced via FastAPI & ZenML
+        </div>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content, status_code=200)
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    """Gracefully handle browser favicon requests."""
+    return {"message": "No favicon"}
 
 
 # ============================================================================
@@ -312,7 +746,8 @@ async def predict(
     transaction: TransactionData,
     background_tasks: BackgroundTasks,
     model_bundle: Tuple[str, object, object] = Depends(get_active_model),
-    db_pool: aiomysql.Pool = Depends(get_db_pool)
+    db_pool: aiomysql.Pool = Depends(get_db_pool),
+    redis_pool = Depends(get_redis_pool)
 ):
     """
     Real-time fraud prediction endpoint.
@@ -321,6 +756,27 @@ async def predict(
     version_id, model, preprocessor = model_bundle
     start_time = time.time()
     data_dict = transaction.dict()
+    customer_id = data_dict.pop("customer_id")
+
+    # Online Feature Store: Fetch rolling counts
+    try:
+        redis_key = f"customer:{customer_id}"
+        features = await redis_pool.hgetall(redis_key)
+        data_dict["count_1_day"] = float(features.get("count_1_day", 0.0))
+        data_dict["count_7_days"] = float(features.get("count_7_days", 0.0))
+        data_dict["count_30_days"] = float(features.get("count_30_days", 0.0))
+        
+        # Fire-and-forget: increment counts
+        async def increment_redis():
+            await redis_pool.hincrbyfloat(redis_key, "count_1_day", 1.0)
+            await redis_pool.hincrbyfloat(redis_key, "count_7_days", 1.0)
+            await redis_pool.hincrbyfloat(redis_key, "count_30_days", 1.0)
+            await redis_pool.expire(redis_key, 30 * 24 * 3600)
+        background_tasks.add_task(increment_redis)
+    except Exception as e:
+        logger.error("Redis Feature Store fetch failed", extra={"error": str(e)})
+        # Default to 0.0 if Redis fails
+        data_dict["count_1_day"], data_dict["count_7_days"], data_dict["count_30_days"] = 0.0, 0.0, 0.0
 
     # STRICT SCHEMA VALIDATION: Force Pandas to construct columns in EXACT expected physical order
     # This prevents silent pipeline corruption if upstream JSON orders shift.
@@ -341,6 +797,21 @@ async def predict(
         logger.error("Inference Timeout", extra={"model_version": version_id})
         raise HTTPException(status_code=504, detail="Prediction timeout exceeded.")
 
+    # Shadow Model Evaluation (A/B Serving)
+    shadow_version_id = request.app.state.shadow_model_version
+    shadow_prediction_val = None
+    if shadow_version_id:
+        shadow_model, shadow_preprocessor = request.app.state.models.get(shadow_version_id, (None, None))
+        if shadow_model:
+            try:
+                shadow_preds, _ = await asyncio.wait_for(
+                    asyncio.to_thread(_predict_logic, shadow_model, shadow_preprocessor, df),
+                    timeout=1.0
+                )
+                shadow_prediction_val = int(shadow_preds[0])
+            except Exception as e:
+                logger.warning("Shadow model prediction failed", extra={"error": str(e)})
+
     prediction = predictions[0]
     prob_legit, prob_fraud = float(probs[0][0]), float(probs[0][1])
     confidence = max(prob_legit, prob_fraud)
@@ -358,7 +829,7 @@ async def predict(
 
     background_tasks.add_task(
         db_log_prediction, db_pool, data_dict, int(prediction),
-        confidence, prob_legit, prob_fraud, version_id, response_time_ms
+        confidence, prob_legit, prob_fraud, version_id, response_time_ms, shadow_prediction_val
     )
 
     return PredictionResponse(
@@ -372,58 +843,90 @@ async def predict(
 # EVENT-DRIVEN OPS ENDPOINTS
 # ============================================================================
 
+@app.post("/feedback", tags=["Ops"])
+async def receive_feedback(feedback: FeedbackData, db_pool: aiomysql.Pool = Depends(get_db_pool)):
+    """Receives ground truth labels and updates the inference logs for continuous learning."""
+    success = await db_update_ground_truth(db_pool, feedback.prediction_id, feedback.actual_fraud)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update feedback loop.")
+    return {"message": "Feedback successfully recorded."}
+
 @app.post("/retrain", tags=["Ops"], dependencies=[Depends(verify_api_key)])
 async def trigger_retraining(request: Request, db_pool: aiomysql.Pool = Depends(get_db_pool)):
     """
-    Decoupled Retraining Trigger.
-    Instead of executing heavy Python scripts that block the API CPU, this simply 
-    inserts a 'pending' job into MySQL. A separate worker process (training_worker.py)
-    will pick it up and do the heavy lifting elsewhere.
+    Decoupled Retraining Trigger via Celery Task Queue.
     """
     try:
-        async with db_pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute("INSERT INTO retraining_jobs (status) VALUES ('pending')")
-        logger.info("Retraining job queued successfully.", extra={"event": "queue_retraining"})
-        return {"message": "Retraining job queued! A background worker will execute it."}
+        from celery_worker import run_training_pipeline_task
+        run_training_pipeline_task.delay()
+        logger.info("Retraining job dispatched to Celery.", extra={"event": "queue_retraining"})
+        return {"message": "Retraining job queued! Celery workers will execute it."}
     except Exception as e:
-        logger.error("Failed to queue retraining job", extra={"error": str(e)})
-        raise HTTPException(status_code=500, detail="Database queue failed.")
+        logger.error("Failed to dispatch Celery task", extra={"error": str(e)})
+        raise HTTPException(status_code=500, detail="Task queue failed.")
 
 
 @app.post("/reload-model", tags=["Ops"], dependencies=[Depends(verify_api_key)])
-async def reload_model_hot_swap(request: Request):
+async def reload_model_hot_swap(request: Request, load_as_shadow: bool = False):
     """
     Atomic Model Hot-Swapping with Concurrency Protection.
     Safely loads the new model into a memory dictionary BEFORE modifying the active pointer.
+    If load_as_shadow is True, it loads into the shadow pointer.
     Uses an asyncio.Lock to prevent multiple admins from triggering collisions simultaneously.
     """
-    logger.info("Initiating atomic model hot-swap sequence.")
+    logger.info("Initiating atomic model hot-swap sequence.", extra={"load_as_shadow": load_as_shadow})
     
     # Protect against concurrent reload requests
     async with request.app.state.model_reload_lock:
         try:
             # Load the new artifacts from ZenML (takes time)
-            new_version_id, new_model, new_preprocessor = fetch_production_model_from_zenml()
+            if load_as_shadow:
+                new_version_id, new_model, new_preprocessor = fetch_model_from_zenml(ModelStages.STAGING)
+            else:
+                new_version_id, new_model, new_preprocessor = fetch_model_from_zenml(ModelStages.PRODUCTION)
             
             # Store in the dictionary memory pool
             request.app.state.models[new_version_id] = (new_model, new_preprocessor)
             
-            # Atomically swap the active pointer in 1 millisecond
-            old_version_id = request.app.state.active_model_version
-            request.app.state.active_model_version = new_version_id
-            
-            logger.info("Model hot-swap complete.", extra={
-                "event": "model_reload",
-                "old_version": old_version_id,
-                "new_version": new_version_id
-            })
-            
-            # Optional: Delete the old model from dictionary to free RAM
-            if old_version_id != new_version_id and old_version_id in request.app.state.models:
-                del request.app.state.models[old_version_id]
+            if load_as_shadow:
+                request.app.state.shadow_model_version = new_version_id
+                logger.info("Shadow model loaded.", extra={"new_version": new_version_id})
+                return {"message": f"Successfully loaded {new_version_id} as shadow model."}
+            else:
+                # Atomically swap the active pointer in 1 millisecond
+                old_version_id = request.app.state.active_model_version
+                request.app.state.active_model_version = new_version_id
                 
-            return {"message": f"Successfully hot-swapped to {new_version_id}"}
+                logger.info("Model hot-swap complete.", extra={
+                    "event": "model_reload",
+                    "old_version": old_version_id,
+                    "new_version": new_version_id
+                })
+                
+                # Optional: Delete the old model from dictionary to free RAM
+                if old_version_id != new_version_id and old_version_id in request.app.state.models:
+                    if request.app.state.shadow_model_version != old_version_id:
+                        del request.app.state.models[old_version_id]
+                    
+                return {"message": f"Successfully hot-swapped to {new_version_id}"}
         except Exception as e:
             logger.error("Hot-swap failed", extra={"error": str(e)})
             raise HTTPException(status_code=500, detail=f"Failed to reload model: {e}")
+
+@app.post("/promote-shadow", tags=["Ops"], dependencies=[Depends(verify_api_key)])
+async def promote_shadow_model(request: Request):
+    """Instantly promotes the current shadow model to become the active model."""
+    async with request.app.state.model_reload_lock:
+        shadow_id = request.app.state.shadow_model_version
+        if not shadow_id:
+            raise HTTPException(status_code=400, detail="No shadow model loaded to promote.")
+        
+        old_version_id = request.app.state.active_model_version
+        request.app.state.active_model_version = shadow_id
+        request.app.state.shadow_model_version = None
+        
+        if old_version_id != shadow_id and old_version_id in request.app.state.models:
+            del request.app.state.models[old_version_id]
+            
+        logger.info("Shadow model promoted to active.", extra={"promoted_version": shadow_id})
+        return {"message": f"Successfully promoted shadow model {shadow_id} to active."}
