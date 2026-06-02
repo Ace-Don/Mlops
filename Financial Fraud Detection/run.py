@@ -7,7 +7,6 @@ import mlflow
 import yaml
 from pipelines import (
     fraud_feature_engineering_pipeline,
-    fraud_inference_pipeline,
     fraud_training_pipeline,
 )
 from zenml.client import Client
@@ -42,10 +41,6 @@ Examples:
   \b 
   # Run the training pipeline using versioned artifacts from feature engineering
     python run.py --training-pipeline --train-dataset-version-name=1 --test-dataset-version-name=1
-
-  \b
-  # Run the inference pipeline
-    python run.py --inference-pipeline
 
 """
 )
@@ -93,12 +88,7 @@ Examples:
     default=False,
     help="Whether to run the pipeline that trains the model.",
 )
-@click.option(
-    "--inference-pipeline",
-    is_flag=True,
-    default=False,
-    help="Whether to run the pipeline that performs inference.",
-)
+
 @click.option(
     "--no-cache",
     is_flag=True,
@@ -113,7 +103,6 @@ def main(
     model_type: str,
     feature_pipeline: bool,
     training_pipeline: bool,
-    inference_pipeline: bool,
     no_cache: bool,
 ):
     """Main entry point for the pipeline execution."""
@@ -176,15 +165,7 @@ def main(
         fraud_training_pipeline.with_options(**pipeline_args)(**run_args_train)
         logger.info(f"Training pipeline with {model_type} finished successfully!\n\n")
 
-    # ── Execute Inference Pipeline ────────────────────────────────────────────
-    if inference_pipeline:
-        run_args_inference = {}
-        pipeline_args = {"enable_cache": False}
-        pipeline_args["config_path"] = os.path.join(config_folder, "inference.yaml")
 
-        inference_configured = fraud_inference_pipeline.with_options(**pipeline_args)
-        inference_configured(**run_args_inference)
-        logger.info("Inference pipeline finished successfully!\n\n")
 
 
 if __name__ == "__main__":
