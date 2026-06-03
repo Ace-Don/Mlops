@@ -93,6 +93,10 @@ def run_drift_check():
     report = Report(metrics=[DataDriftPreset()])
     report.run(reference_data=reference_data, current_data=current_data)
     
+    # Save the HTML report for visual dashboard access
+    report.save_html("drift_report.html")
+    logger.info("Evidently HTML drift report saved successfully as 'drift_report.html'.")
+    
     drift_result = report.as_dict()
     dataset_drift = drift_result['metrics'][0]['result']['dataset_drift']
     
