@@ -2,6 +2,9 @@
 
 An end-to-end, hyper-scale Machine Learning Operations (MLOps) project designed to detect financial fraud in real-time. This project evolves a monolithic Jupyter Notebook (`BankSim` dataset) into a distributed, robust, and automated production architecture.
 
+> [!IMPORTANT]
+> **New to the project?** Start by reading the [Master Project Architecture Guide & Rationale](file:///d:/Mlops/Financial%20Fraud%20Detection/PROJECT_RATIONALE.md) for a beginner-friendly, step-by-step technical explanation of the entire system architecture, technology choices, and design patterns.
+
 ## 🌟 Executive Summary
 
 This repository implements a modern AI serving architecture. It doesn't just train a model—it deploys an **Enterprise Inference API** capable of enriching real-time transactions with an **Online Feature Store** (Redis), tracking telemetry with **Prometheus**, offloading retraining pipelines to **Celery**, and securely testing candidate models on live traffic using **Shadow Deployments**. 
@@ -102,5 +105,6 @@ streamlit run streamlit_app.py
 
 ## 📚 Advanced Documentation References
 For more granular details on specific endpoints, database schemas, and metrics, please refer to the dedicated documents generated in this repository:
-1. [INFERENCE_API_DOCUMENTATION.md](./INFERENCE_API_DOCUMENTATION.md): Deep dive into API routing, request schemas, and connection pooling.
-2. [INFRASTRUCTURE_EXPLAINER.md](./INFRASTRUCTURE_EXPLAINER.md): Detailed breakdown of Redis, Celery, Prometheus, and the Shadow Deployment lifecycle logic.
+1. [PROJECT_RATIONALE.md](./PROJECT_RATIONALE.md): Master Project Architecture & Systems Design Guide (End-to-End Walkthrough).
+2. [INFERENCE_API_DOCUMENTATION.md](./INFERENCE_API_DOCUMENTATION.md): Deep dive into API routing, request schemas, and connection pooling.
+3. [INFRASTRUCTURE_EXPLAINER.md](./INFRASTRUCTURE_EXPLAINER.md): Detailed breakdown of Redis, Celery, Prometheus, and the Shadow Deployment lifecycle logic.
